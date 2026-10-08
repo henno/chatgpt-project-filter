@@ -31,6 +31,12 @@
       background: var(--pf-bg, transparent); backdrop-filter: blur(14px);
       box-shadow: 0 1px 0 color-mix(in srgb, currentColor 10%, transparent);
     }
+    /* Cover the scroll container's top padding so nothing peeks through above the pinned bar. */
+    .pf-bar.pf-stuck::before {
+      content: ''; position: absolute; left: -16px; right: -16px; bottom: 100%; height: 16px;
+      background: var(--pf-bg, transparent);
+    }
+    .pf-bar.pf-stuck { margin-inline: -16px; padding-inline: 24px; }
     .pf-input {
       width: 100%; box-sizing: border-box; font: inherit; font-size: 13px; color: inherit;
       padding: 5px 26px 5px 9px; border-radius: 8px; outline: none;
@@ -62,7 +68,7 @@
       px.fillStyle = c;
       px.fillRect(0, 0, 1, 1);
       const [r, g, b] = px.getImageData(0, 0, 1, 1).data;
-      bar.style.setProperty('--pf-bg', `rgb(${r} ${g} ${b} / 0.96)`);
+      bar.style.setProperty("--pf-bg", `color-mix(in srgb, rgb(${r} ${g} ${b}) 95%, white)`);
       return;
     }
   }
