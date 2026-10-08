@@ -9,8 +9,6 @@ Live project filter for the ChatGPT/Codex macOS desktop app sidebar.
 
 ![Filtering projects and chats](docs/screenshot.png)
 
-(Screenshot uses sample project and chat names.)
-
 The app bundle is not modified. `launch.sh` starts ChatGPT with `--remote-debugging-port=9222`
 and `inject.mjs` injects `project-filter.js` into the renderer over the Chrome DevTools Protocol.
 Note: while running this way, any local process can control the app via port 9222.
