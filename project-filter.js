@@ -24,7 +24,13 @@
   const style = document.createElement('style');
   style.textContent = `
     [${HIDE_ATTR}] { display: none !important; }
-    .pf-bar { padding: 2px 8px 6px 8px; }
+    .pf-bar {
+      position: sticky; top: 0; z-index: 5; padding: 4px 8px 6px 8px;
+    }
+    .pf-bar.pf-stuck {
+      background: var(--pf-bg, transparent); backdrop-filter: blur(14px);
+      box-shadow: 0 1px 0 color-mix(in srgb, currentColor 10%, transparent);
+    }
     .pf-input {
       width: 100%; box-sizing: border-box; font: inherit; font-size: 13px; color: inherit;
       padding: 5px 26px 5px 9px; border-radius: 8px; outline: none;
@@ -45,6 +51,21 @@
   document.head.appendChild(style);
 
   const projectsSection = () => document.querySelector(PROJECT_SEL)?.closest('section') ?? null;
+
+  // The sidebar background is translucent; sample it and make an opaque-enough copy for the sticky bar.
+  const px = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
+  function syncBackground() {
+    for (let e = bar; e; e = e.parentElement) {
+      const c = getComputedStyle(e).backgroundColor;
+      if (c === 'rgba(0, 0, 0, 0)' || c === 'transparent') continue;
+      px.clearRect(0, 0, 1, 1);
+      px.fillStyle = c;
+      px.fillRect(0, 0, 1, 1);
+      const [r, g, b] = px.getImageData(0, 0, 1, 1).data;
+      bar.style.setProperty('--pf-bg', `rgb(${r} ${g} ${b} / 0.96)`);
+      return;
+    }
+  }
 
   function buildBar() {
     bar = document.createElement('div');
@@ -132,12 +153,20 @@
       if (!wrapper || !content) return;
       wrapper.insertBefore(bar, content);
     }
+    syncBackground();
     apply();
   }
 
   let timer = 0;
   const schedule = () => { clearTimeout(timer); timer = setTimeout(ensure, 60); };
   new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
+
+  // Only paint the bar's background while it is actually pinned over scrolled content.
+  document.addEventListener('scroll', (e) => {
+    const sc = e.target;
+    if (!bar?.isConnected || !(sc instanceof Element) || !sc.contains(bar)) return;
+    bar.classList.toggle('pf-stuck', sc.scrollTop > 0 && bar.getBoundingClientRect().top <= sc.getBoundingClientRect().top + 8);
+  }, true);
 
   window.addEventListener('keydown', (e) => {
     const s = FOCUS_SHORTCUT;
