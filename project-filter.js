@@ -68,7 +68,7 @@
       px.fillStyle = c;
       px.fillRect(0, 0, 1, 1);
       const [r, g, b] = px.getImageData(0, 0, 1, 1).data;
-      bar.style.setProperty("--pf-bg", `color-mix(in srgb, rgb(${r} ${g} ${b}) 95%, white)`);
+      bar.style.setProperty("--pf-bg", `rgb(${r} ${g} ${b})`);
       return;
     }
   }
