@@ -78,9 +78,9 @@
     bar.className = 'pf-bar';
     bar.innerHTML =
       '<div class="pf-wrap"><input class="pf-input" type="text" spellcheck="false" ' +
-      'autocomplete="off" placeholder="Project, then space + chat word…" aria-label="Filter projects">' +
+      'autocomplete="off" placeholder="project  chat word  ·  /chat only" aria-label="Filter projects">' +
       '<button class="pf-clear" type="button" aria-label="Clear filter" hidden>✕</button></div>' +
-      '<div class="pf-empty" hidden>No matching projects</div>';
+      '<div class="pf-empty" hidden>No matches</div>';
     input = bar.querySelector('.pf-input');
     empty = bar.querySelector('.pf-empty');
     const clear = bar.querySelector('.pf-clear');
@@ -120,9 +120,12 @@
     }
   }
 
-  // "project words  chat words": the first word filters projects, the rest filter chat titles.
+  // "project chat words": the first word filters projects, the rest filter chat titles ("/chat words": chats only).
   function apply() {
-    const [projectToken = '', ...chatTokens] = norm(query).split(/\s+/).filter(Boolean);
+    // A leading "/" searches chat titles only, across all projects.
+    const chatOnly = /^\s*\//.test(query);
+    const words = norm(query).replace(/^\s*\//, '').split(/\s+/).filter(Boolean);
+    const [projectToken = '', ...chatTokens] = chatOnly ? ['', ...words] : words;
     const projects = document.querySelectorAll(PROJECT_SEL);
     let visible = 0;
     for (const p of projects) {
@@ -145,7 +148,7 @@
     }
     if (!bar) return;
     bar.querySelector('.pf-clear').hidden = query === '';
-    empty.hidden = !(projectToken && projects.length && visible === 0);
+    empty.hidden = !((projectToken || chatTokens.length) && projects.length && visible === 0);
   }
 
   // The sidebar is React-managed and re-renders; re-attach the bar and re-apply as needed.

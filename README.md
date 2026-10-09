@@ -5,6 +5,7 @@ Live project filter for the ChatGPT/Codex macOS desktop app sidebar.
 - Type in the box under **Projects** to filter projects by name.
 - Add a space and more words to also filter chat titles inside the matching projects
   (`kalender oppi` → project containing "kalender", chats containing "oppi").
+- Start with `/` to search chat titles only, across all projects (`/oppi`).
 - `Cmd+Option+P` focuses the box, `Esc` clears it.
 
 ![Filtering projects and chats](docs/screenshot.png)
