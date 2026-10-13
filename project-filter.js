@@ -150,9 +150,22 @@
   const collator = new Intl.Collator('et', { sensitivity: 'base', numeric: true });
   function sortProjects(projects) {
     const rows = [...projects].map((p) => ({ name: p.getAttribute('aria-label') ?? '', row: p.parentElement?.closest('[role="listitem"]') }));
+    sortChats(projects);
     rows.filter((r) => r.row).sort((a, b) => collator.compare(a.name, b.name)).forEach(({ row }, i) => {
       if (row.style.order !== String(i)) row.style.order = String(i);
     });
+  }
+
+  // Same trick for the chats inside each project (only the chats the app has rendered).
+  function sortChats(projects) {
+    for (const p of projects) {
+      const rows = [...p.querySelectorAll(THREAD_SEL)]
+        .map((t) => ({ name: t.dataset.appActionSidebarThreadTitle ?? t.textContent, row: t.closest('[role="listitem"]') }))
+        .filter((r) => r.row);
+      rows.sort((a, b) => collator.compare(a.name, b.name)).forEach(({ row }, i) => {
+        if (row.style.order !== String(i)) row.style.order = String(i);
+      });
+    }
   }
 
   // "project chat words": the first word filters projects, the rest filter chat titles ("/chat words": chats only).
