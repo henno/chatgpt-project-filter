@@ -140,6 +140,15 @@
     }
   }
 
+  // Alphabetical order via CSS `order` on the wrapper rows: React owns the DOM, so nodes are never moved.
+  const collator = new Intl.Collator('et', { sensitivity: 'base', numeric: true });
+  function sortProjects(projects) {
+    const rows = [...projects].map((p) => ({ name: p.getAttribute('aria-label') ?? '', row: p.parentElement?.closest('[role="listitem"]') }));
+    rows.filter((r) => r.row).sort((a, b) => collator.compare(a.name, b.name)).forEach(({ row }, i) => {
+      if (row.style.order !== String(i)) row.style.order = String(i);
+    });
+  }
+
   // "project chat words": the first word filters projects, the rest filter chat titles ("/chat words": chats only).
   function apply() {
     // A leading "/" searches chat titles only, across all projects.
@@ -171,6 +180,7 @@
       if (match) visible++;
       setHidden(p.parentElement?.closest('[role="listitem"]') ?? p, !match);
     }
+    sortProjects(projects);
     if (!bar) return;
     bar.querySelector('.pf-clear').hidden = query === '';
     const fold = bar.querySelector('.pf-fold');

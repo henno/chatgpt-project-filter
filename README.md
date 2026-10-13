@@ -7,6 +7,7 @@ Live project filter for the ChatGPT/Codex macOS desktop app sidebar.
   (`kalender oppi` → project containing "kalender", chats containing "oppi").
 - Start with `/` to search chat titles only, across all projects (`/oppi`).
 - The button next to the box collapses/expands all projects (project names only vs. with chats). Visual only; the app's own collapse state is untouched.
+- Projects are listed alphabetically (visual only; the app's own order is untouched).
 - `Cmd+Option+P` focuses the box, `Esc` clears it.
 
 ![Filtering projects and chats](docs/screenshot.png)
