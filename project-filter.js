@@ -16,10 +16,6 @@
   // Lowercase + strip diacritics so "tahvli" also finds "tähvli".
   const norm = (s) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
-  const FOLD_KEY = 'projectFilter.folded';
-  const FOLD_ATTR = 'data-pf-fold';
-  let folded = false;
-  try { folded = localStorage.getItem(FOLD_KEY) === '1'; } catch {}
   let query = '';
   let bar = null;
   let input = null;
@@ -51,7 +47,6 @@
     .pf-input::placeholder { color: color-mix(in srgb, currentColor 45%, transparent); }
     .pf-wrap { display: flex; gap: 6px; align-items: center; }
     .pf-field { position: relative; flex: 1; min-width: 0; }
-    [${FOLD_ATTR}] { display: none !important; }
     .pf-fold {
       flex: none; width: 28px; height: 28px; display: grid; place-items: center; padding: 0;
       border-radius: 8px; border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
@@ -86,6 +81,18 @@
     }
   }
 
+  const svg = (d) => `<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
+  const ICON_COLLAPSE = svg('M4 3l4 3 4-3M4 13l4-3 4 3');
+  const ICON_EXPAND = svg('M4 6l4-3 4 3M4 10l4 3 4-3');
+
+  // One-shot: click every project whose native expanded state differs from the target.
+  function setAllExpanded(expanded) {
+    for (const p of document.querySelectorAll(PROJECT_SEL)) {
+      const row = p.querySelector('[data-app-action-sidebar-project-row]');
+      if (row && (row.getAttribute('aria-expanded') === 'true') !== expanded) row.click();
+    }
+  }
+
   function buildBar() {
     bar = document.createElement('div');
     bar.className = 'pf-bar';
@@ -93,7 +100,8 @@
       '<div class="pf-wrap"><div class="pf-field"><input class="pf-input" type="text" spellcheck="false" ' +
       'autocomplete="off" placeholder="project  chat word  ·  /chat only" aria-label="Filter projects">' +
       '<button class="pf-clear" type="button" aria-label="Clear filter" hidden>✕</button></div>' +
-      '<button class="pf-fold" type="button"></button></div>' +
+      '<button class="pf-fold" type="button" data-pf="collapse" title="Collapse all projects" aria-label="Collapse all projects">' + ICON_COLLAPSE + '</button>' +
+      '<button class="pf-fold" type="button" data-pf="expand" title="Expand all projects" aria-label="Expand all projects">' + ICON_EXPAND + '</button></div>' +
       '<div class="pf-empty" hidden>No matches</div>';
     input = bar.querySelector('.pf-input');
     empty = bar.querySelector('.pf-empty');
@@ -109,11 +117,9 @@
       });
     }
     clear.addEventListener('click', () => { setQuery(''); input.focus(); });
-    bar.querySelector('.pf-fold').addEventListener('click', () => {
-      folded = !folded;
-      try { localStorage.setItem(FOLD_KEY, folded ? '1' : '0'); } catch {}
-      apply();
-    });
+    for (const b of bar.querySelectorAll('.pf-fold')) {
+      b.addEventListener('click', () => setAllExpanded(b.dataset.pf === 'expand'));
+    }
   }
 
   function setQuery(q) {
@@ -171,11 +177,6 @@
       }
       if (chatTokens.length && !anyChat) match = false;
 
-      // Fold = project names only. Purely visual (the app's own collapse state is untouched);
-      // chat searches always show their results.
-      const holder = p.querySelector('[data-app-action-sidebar-project-list-id]')?.closest('.contents');
-      if (holder) setAttr(holder, FOLD_ATTR, folded && !chatTokens.length);
-
       // The animated wrapper row sits one listitem above the project container.
       if (match) visible++;
       setHidden(p.parentElement?.closest('[role="listitem"]') ?? p, !match);
@@ -183,12 +184,6 @@
     sortProjects(projects);
     if (!bar) return;
     bar.querySelector('.pf-clear').hidden = query === '';
-    const fold = bar.querySelector('.pf-fold');
-    fold.title = folded ? 'Expand all (show chats)' : 'Collapse all (projects only)';
-    fold.setAttribute('aria-label', fold.title);
-    fold.innerHTML = folded
-      ? '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6l4-3 4 3M4 10l4 3 4-3"/></svg>'
-      : '<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4 3l4 3 4-3M4 13l4-3 4 3"/></svg>';
     empty.hidden = !((projectToken || chatTokens.length) && projects.length && visible === 0);
   }
 
