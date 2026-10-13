@@ -165,6 +165,13 @@
       rows.sort((a, b) => collator.compare(a.name, b.name)).forEach(({ row }, i) => {
         if (row.style.order !== String(i)) row.style.order = String(i);
       });
+      // Non-chat siblings (the "Show more" row) stay at the end.
+      const mine = new Set(rows.map((r) => r.row));
+      for (const parent of new Set(rows.map((r) => r.row.parentElement))) {
+        for (const el of parent.children) {
+          if (!mine.has(el) && el.style.order !== '1000000') el.style.order = '1000000';
+        }
+      }
     }
   }
 
