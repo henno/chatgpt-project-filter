@@ -17,9 +17,10 @@
   const norm = (s) => s.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
   let query = '';
-  let bar = null;
-  let input = null;
-  let empty = null;
+  // The app mounts one sidebar per mode (Codex / ChatGPT), each with its own Projects section;
+  // every section gets its own filter bar, all sharing the same query.
+  const allBars = () => [...document.querySelectorAll('.pf-bar')];
+  const visibleBar = () => allBars().find((b) => b.getBoundingClientRect().width > 0);
 
   const style = document.createElement('style');
   style.textContent = `
@@ -64,11 +65,11 @@
   `;
   document.head.appendChild(style);
 
-  const projectsSection = () => document.querySelector(PROJECT_SEL)?.closest('section') ?? null;
+  const projectsSections = () => [...new Set([...document.querySelectorAll(PROJECT_SEL)].map((p) => p.closest('section')).filter(Boolean))];
 
   // The sidebar background is translucent; sample it and make an opaque-enough copy for the sticky bar.
   const px = document.createElement('canvas').getContext('2d', { willReadFrequently: true });
-  function syncBackground() {
+  function syncBackground(bar) {
     for (let e = bar; e; e = e.parentElement) {
       const c = getComputedStyle(e).backgroundColor;
       if (c === 'rgba(0, 0, 0, 0)' || c === 'transparent') continue;
@@ -102,7 +103,7 @@
   }
 
   function buildBar() {
-    bar = document.createElement('div');
+    const bar = document.createElement('div');
     bar.className = 'pf-bar';
     bar.innerHTML =
       '<div class="pf-wrap"><div class="pf-field"><input class="pf-input" type="text" spellcheck="false" ' +
@@ -111,12 +112,11 @@
       '<button class="pf-fold" type="button" data-pf="collapse" title="Collapse all projects" aria-label="Collapse all projects">' + ICON_COLLAPSE + '</button>' +
       '<button class="pf-fold" type="button" data-pf="expand" title="Expand all projects" aria-label="Expand all projects">' + ICON_EXPAND + '</button></div>' +
       '<div class="pf-empty" hidden>No matches</div>';
-    input = bar.querySelector('.pf-input');
-    empty = bar.querySelector('.pf-empty');
+    const input = bar.querySelector('.pf-input');
     const clear = bar.querySelector('.pf-clear');
 
     input.value = query;
-    input.addEventListener('input', () => { query = input.value; apply(); });
+    input.addEventListener('input', () => setQuery(input.value, input));
     // Keep typing away from the app's own keyboard shortcuts.
     for (const type of ['keydown', 'keyup', 'keypress']) {
       input.addEventListener(type, (e) => {
@@ -128,11 +128,12 @@
     for (const b of bar.querySelectorAll('.pf-fold')) {
       b.addEventListener('click', () => setAllExpanded(b.dataset.pf === 'expand'));
     }
+    return bar;
   }
 
-  function setQuery(q) {
+  function setQuery(q, source) {
     query = q;
-    if (input) input.value = q;
+    for (const i of document.querySelectorAll('.pf-input')) if (i !== source && i.value !== q) i.value = q;
     apply();
   }
 
@@ -190,7 +191,7 @@
     const words = norm(query).replace(/^\s*\//, '').split(/\s+/).filter(Boolean);
     const [projectToken = '', ...chatTokens] = chatOnly ? ['', ...words] : words;
     const projects = document.querySelectorAll(PROJECT_SEL);
-    let visible = 0;
+    const visibleIn = new Map(); // section -> number of projects left showing
     for (const p of projects) {
       const name = norm(p.getAttribute('aria-label') ?? p.textContent ?? '');
       let match = name.includes(projectToken);
@@ -206,27 +207,32 @@
       if (chatTokens.length && !anyChat) match = false;
 
       // The animated wrapper row sits one listitem above the project container.
-      if (match) visible++;
+      const sec = p.closest('section');
+      visibleIn.set(sec, (visibleIn.get(sec) ?? 0) + (match ? 1 : 0));
       setHidden(p.parentElement?.closest('[role="listitem"]') ?? p, !match);
     }
     sortProjects(projects);
-    if (!bar) return;
-    bar.querySelector('.pf-clear').hidden = query === '';
-    empty.hidden = !((projectToken || chatTokens.length) && projects.length && visible === 0);
+    for (const bar of allBars()) {
+      bar.querySelector('.pf-clear').hidden = query === '';
+      const shown = visibleIn.get(bar.closest('section'));
+      bar.querySelector('.pf-empty').hidden = !((projectToken || chatTokens.length) && shown === 0);
+    }
   }
 
   // The sidebar is React-managed and re-renders; re-attach the bar and re-apply as needed.
   function ensure() {
-    const section = projectsSection();
-    if (!section) return;
-    if (!bar) buildBar();
-    if (!bar.isConnected) {
-      const wrapper = section.firstElementChild; // div.group/nav-section: [title, content]
-      const content = wrapper?.children[1];
-      if (!wrapper || !content) return;
-      wrapper.insertBefore(bar, content);
+    for (const section of projectsSections()) {
+      let bar = section.querySelector('.pf-bar');
+      if (!bar) {
+        const wrapper = section.firstElementChild; // div.group/nav-section: [title, content]
+        const content = wrapper?.children[1];
+        if (!wrapper || !content) continue;
+        bar = buildBar();
+        bar.querySelector('.pf-input').value = query;
+        wrapper.insertBefore(bar, content);
+        syncBackground(bar);
+      }
     }
-    syncBackground();
     apply();
   }
 
@@ -237,9 +243,10 @@
   // Only paint the bar's background while it is actually pinned over scrolled content.
   document.addEventListener('scroll', (e) => {
     const sc = e.target;
-    if (!bar?.isConnected || !(sc instanceof Element) || !sc.contains(bar)) return;
+    const bar = sc instanceof Element ? sc.querySelector('.pf-bar') : null;
+    if (!bar) return;
     const stuck = sc.scrollTop > 0 && bar.getBoundingClientRect().top <= sc.getBoundingClientRect().top + 8;
-    if (stuck) syncBackground(); // the theme may have changed since the last sample
+    if (stuck) syncBackground(bar); // the theme may have changed since the last sample
     bar.classList.toggle('pf-stuck', stuck);
   }, true);
 
@@ -247,17 +254,20 @@
     const s = FOCUS_SHORTCUT;
     if (e.code !== s.code || e.metaKey !== s.metaKey || e.altKey !== s.altKey || e.ctrlKey || e.shiftKey) return;
     e.preventDefault();
-    const section = projectsSection();
+    ensure();
+    const bar = visibleBar();
+    if (!bar) return;
+    const section = bar.closest('section');
     if (section?.dataset.appActionSidebarSectionCollapsed === 'true') {
       section.querySelector('[data-app-action-sidebar-section-toggle]')?.click();
     }
-    ensure();
-    input?.focus();
-    input?.select();
+    const input = bar.querySelector('.pf-input');
+    input.focus();
+    input.select();
   }, true);
 
   // Re-sample the surface color when the app or OS theme changes.
-  const resync = () => requestAnimationFrame(() => bar?.isConnected && syncBackground());
+  const resync = () => requestAnimationFrame(() => allBars().forEach(syncBackground));
   matchMedia('(prefers-color-scheme: dark)').addEventListener('change', resync);
   new MutationObserver(resync).observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme', 'style'] });
 
