@@ -146,11 +146,16 @@
   };
   const setHidden = (el, hide) => setAttr(el, HIDE_ATTR, hide);
 
-  // Projects only render a few chats until "Show more" is clicked; open them so chat search is complete.
+  // Projects only render a few chats until "Show more" is clicked: click it for the user and hide
+  // the row, so every chat is always listed.
   function expandAll(project) {
     for (const b of project.querySelectorAll('[data-app-action-sidebar-project-list-id] button')) {
-      if (b.closest(THREAD_SEL) || !/^show more/i.test(b.textContent.trim())) continue;
-      if (Date.now() - (lastExpand.get(b) ?? 0) < 300) continue;
+      if (b.closest(THREAD_SEL)) continue;
+      const label = b.textContent.trim();
+      if (!/^show (more|less)/i.test(label)) continue;
+      const row = b.closest('[role="listitem"]');
+      if (row) setHidden(row, true);
+      if (!/^show more/i.test(label) || Date.now() - (lastExpand.get(b) ?? 0) < 300) continue;
       lastExpand.set(b, Date.now());
       b.click();
     }
@@ -197,7 +202,7 @@
       const name = norm(p.getAttribute('aria-label') ?? p.textContent ?? '');
       let match = name.includes(projectToken);
 
-      if (match && chatTokens.length) expandAll(p);
+      expandAll(p);
       let anyChat = false;
       for (const t of p.querySelectorAll(THREAD_SEL)) {
         const ok = chatTokens.every((w) => norm(t.dataset.appActionSidebarThreadTitle ?? t.textContent).includes(w));
