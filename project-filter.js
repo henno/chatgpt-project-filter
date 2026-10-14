@@ -73,10 +73,18 @@
       const c = getComputedStyle(e).backgroundColor;
       if (c === 'rgba(0, 0, 0, 0)' || c === 'transparent') continue;
       px.clearRect(0, 0, 1, 1);
+      px.fillStyle = '#000';
       px.fillStyle = c;
       px.fillRect(0, 0, 1, 1);
-      const [r, g, b] = px.getImageData(0, 0, 1, 1).data;
-      bar.style.setProperty("--pf-bg", `rgb(${r} ${g} ${b})`);
+      const [r, g, b, a] = px.getImageData(0, 0, 1, 1).data;
+      if (a < 128) continue; // too see-through to represent the surface
+      // Guard against a stale/mismatched sample (e.g. light surface under light-on-dark text).
+      const lum = (R, G, B) => (0.299 * R + 0.587 * G + 0.114 * B) / 255;
+      const [tr, tg, tb] = getComputedStyle(bar).color.match(/[\d.]+/g).map(Number);
+      const textL = lum(tr, tg, tb);
+      let fill = `rgb(${r} ${g} ${b})`;
+      if (Math.abs(lum(r, g, b) - textL) < 0.35) fill = textL > 0.5 ? 'rgb(25 25 25)' : 'rgb(250 250 250)';
+      bar.style.setProperty('--pf-bg', fill);
       return;
     }
   }
@@ -230,7 +238,9 @@
   document.addEventListener('scroll', (e) => {
     const sc = e.target;
     if (!bar?.isConnected || !(sc instanceof Element) || !sc.contains(bar)) return;
-    bar.classList.toggle('pf-stuck', sc.scrollTop > 0 && bar.getBoundingClientRect().top <= sc.getBoundingClientRect().top + 8);
+    const stuck = sc.scrollTop > 0 && bar.getBoundingClientRect().top <= sc.getBoundingClientRect().top + 8;
+    if (stuck) syncBackground(); // the theme may have changed since the last sample
+    bar.classList.toggle('pf-stuck', stuck);
   }, true);
 
   window.addEventListener('keydown', (e) => {
@@ -245,6 +255,11 @@
     input?.focus();
     input?.select();
   }, true);
+
+  // Re-sample the surface color when the app or OS theme changes.
+  const resync = () => requestAnimationFrame(() => bar?.isConnected && syncBackground());
+  matchMedia('(prefers-color-scheme: dark)').addEventListener('change', resync);
+  new MutationObserver(resync).observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'data-theme', 'style'] });
 
   window.__projectFilter = { ensure, setQuery };
   ensure();
