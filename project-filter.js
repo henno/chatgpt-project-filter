@@ -38,6 +38,8 @@
       background: var(--pf-bg, transparent);
     }
     .pf-bar.pf-stuck { margin-inline: -16px; padding-inline: 24px; }
+    [data-pf-new] { background: color-mix(in srgb, var(--pf-new, #facc15) 16%, transparent) !important; }
+    [data-pf-new] [data-thread-title] { color: var(--pf-new, #facc15); }
     .pf-input {
       width: 100%; box-sizing: border-box; font: inherit; font-size: 13px; color: inherit;
       padding: 5px 26px 5px 9px; border-radius: 8px; outline: none;
@@ -161,6 +163,24 @@
     }
   }
 
+  // Chats created in the last minute are highlighted. Thread ids are UUIDv7, whose first 48 bits
+  // are the creation time in ms, so no bookkeeping is needed (and old chats never show as new).
+  const FRESH_MS = 60_000;
+  const createdAt = (id) => {
+    const m = /([0-9a-f]{8})-([0-9a-f]{4})-7[0-9a-f]{3}-/i.exec(id ?? '');
+    return m ? parseInt(m[1] + m[2], 16) : 0;
+  };
+  function markFresh() {
+    const now = Date.now();
+    const [r, g, b] = getComputedStyle(document.body).color.match(/[\d.]+/g).map(Number);
+    document.documentElement.style.setProperty('--pf-new', (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.5 ? '#facc15' : '#a16207');
+    for (const t of document.querySelectorAll(THREAD_SEL)) {
+      const ts = createdAt(t.dataset.appActionSidebarThreadId);
+      setAttr(t, 'data-pf-new', ts > 0 && ts <= now + 5000 && now - ts < FRESH_MS);
+    }
+  }
+  setInterval(markFresh, 5000);
+
   // Alphabetical order via CSS `order` on the wrapper rows: React owns the DOM, so nodes are never moved.
   const collator = new Intl.Collator('et', { sensitivity: 'base', numeric: true });
   function sortProjects(projects) {
@@ -218,6 +238,7 @@
       setHidden(p.parentElement?.closest('[role="listitem"]') ?? p, !match);
     }
     sortProjects(projects);
+    markFresh();
     for (const bar of allBars()) {
       bar.querySelector('.pf-clear').hidden = query === '';
       const shown = visibleIn.get(bar.closest('section'));
