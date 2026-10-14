@@ -95,8 +95,9 @@
   const ICON_EXPAND = svg('M4 6l4-3 4 3M4 10l4 3 4-3');
 
   // One-shot: click every project whose native expanded state differs from the target.
-  function setAllExpanded(expanded) {
-    for (const p of document.querySelectorAll(PROJECT_SEL)) {
+  // Scoped to one sidebar: the other mode's sidebar shares the state, so clicking both would cancel out.
+  function setAllExpanded(expanded, section) {
+    for (const p of section.querySelectorAll(PROJECT_SEL)) {
       const row = p.querySelector('[data-app-action-sidebar-project-row]');
       if (row && (row.getAttribute('aria-expanded') === 'true') !== expanded) row.click();
     }
@@ -126,7 +127,7 @@
     }
     clear.addEventListener('click', () => { setQuery(''); input.focus(); });
     for (const b of bar.querySelectorAll('.pf-fold')) {
-      b.addEventListener('click', () => setAllExpanded(b.dataset.pf === 'expand'));
+      b.addEventListener('click', () => setAllExpanded(b.dataset.pf === 'expand', bar.closest('section')));
     }
     return bar;
   }
