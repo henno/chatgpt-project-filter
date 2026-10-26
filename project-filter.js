@@ -40,6 +40,12 @@
     .pf-bar.pf-stuck { margin-inline: -16px; padding-inline: 24px; }
     [data-pf-new] { background: color-mix(in srgb, var(--pf-new, #facc15) 16%, transparent) !important; }
     [data-pf-new] [data-thread-title] { color: var(--pf-new, #facc15); }
+    /* Currently open chat and its project: navy highlight. */
+    [data-pf-active] {
+      background: var(--pf-navy, #1e3a8a) !important; color: #fff !important;
+      box-shadow: inset 0 0 0 1px rgb(255 255 255 / .12);
+    }
+    [data-pf-active] * { color: #fff; }
     .pf-input {
       width: 100%; box-sizing: border-box; font: inherit; font-size: 13px; color: inherit;
       padding: 5px 26px 5px 9px; border-radius: 8px; outline: none;
@@ -175,11 +181,20 @@
     const [r, g, b] = getComputedStyle(document.body).color.match(/[\d.]+/g).map(Number);
     document.documentElement.style.setProperty('--pf-new', (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.5 ? '#facc15' : '#a16207');
     for (const t of document.querySelectorAll(THREAD_SEL)) {
+      setAttr(t, 'data-pf-active', t.dataset.appActionSidebarThreadActive === 'true');
       const ts = createdAt(t.dataset.appActionSidebarThreadId);
       setAttr(t, 'data-pf-new', ts > 0 && ts <= now + 5000 && now - ts < FRESH_MS);
     }
   }
   setInterval(markFresh, 5000);
+
+  // Highlight the project that contains the open chat too.
+  function markActiveProjects() {
+    for (const p of document.querySelectorAll(PROJECT_SEL)) {
+      const row = p.querySelector('[data-app-action-sidebar-project-row]');
+      if (row) setAttr(row, 'data-pf-active', !!p.querySelector(`${THREAD_SEL}[data-pf-active]`));
+    }
+  }
 
   // Alphabetical order via CSS `order` on the wrapper rows: React owns the DOM, so nodes are never moved.
   const collator = new Intl.Collator('et', { sensitivity: 'base', numeric: true });
@@ -239,6 +254,7 @@
     }
     sortProjects(projects);
     markFresh();
+    markActiveProjects();
     for (const bar of allBars()) {
       bar.querySelector('.pf-clear').hidden = query === '';
       const shown = visibleIn.get(bar.closest('section'));
@@ -265,7 +281,9 @@
 
   let timer = 0;
   const schedule = () => { clearTimeout(timer); timer = setTimeout(ensure, 60); };
-  new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
+  new MutationObserver(schedule).observe(document.body, {
+    childList: true, subtree: true, attributes: true, attributeFilter: ['data-app-action-sidebar-thread-active'],
+  });
 
   // Only paint the bar's background while it is actually pinned over scrolled content.
   document.addEventListener('scroll', (e) => {

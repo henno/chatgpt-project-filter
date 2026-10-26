@@ -10,6 +10,7 @@ Live project filter for the ChatGPT/Codex macOS desktop app sidebar.
 - Projects and the chats inside them are listed alphabetically (visual only; the app's own order is untouched).
 - "Show more" is clicked automatically and hidden, so all chats are always listed.
 - Chats created within the last minute are highlighted in yellow.
+- The open chat (and its project) is highlighted in navy blue.
 - `Cmd+Option+P` focuses the box, `Esc` clears it.
 
 ![Filtering projects and chats](docs/screenshot.png)
