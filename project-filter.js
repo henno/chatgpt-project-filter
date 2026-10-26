@@ -42,7 +42,7 @@
     [data-pf-new] [data-thread-title] { color: var(--pf-new, #facc15); }
     /* Currently open chat and its project: navy highlight. */
     [data-pf-active] {
-      background: color-mix(in srgb, var(--pf-navy, #1e3a8a) 45%, transparent) !important;
+      background: var(--pf-active-bg, rgb(30 48 98)) !important;
     }
     .pf-input {
       width: 100%; box-sizing: border-box; font: inherit; font-size: 13px; color: inherit;
@@ -177,7 +177,10 @@
   function markFresh() {
     const now = Date.now();
     const [r, g, b] = getComputedStyle(document.body).color.match(/[\d.]+/g).map(Number);
-    document.documentElement.style.setProperty('--pf-new', (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.5 ? '#facc15' : '#a16207');
+    const darkTheme = (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.5; // light text => dark theme
+    const root = document.documentElement.style;
+    root.setProperty('--pf-new', darkTheme ? '#facc15' : '#a16207');
+    root.setProperty('--pf-active-bg', darkTheme ? 'rgb(30 48 98)' : 'rgb(214 225 250)');
     for (const t of document.querySelectorAll(THREAD_SEL)) {
       setAttr(t, 'data-pf-active', t.dataset.appActionSidebarThreadActive === 'true');
       const ts = createdAt(t.dataset.appActionSidebarThreadId);
