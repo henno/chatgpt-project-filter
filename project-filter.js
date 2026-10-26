@@ -42,10 +42,8 @@
     [data-pf-new] [data-thread-title] { color: var(--pf-new, #facc15); }
     /* Currently open chat and its project: navy highlight. */
     [data-pf-active] {
-      background: var(--pf-navy, #1e3a8a) !important; color: #fff !important;
-      box-shadow: inset 0 0 0 1px rgb(255 255 255 / .12);
+      background: color-mix(in srgb, var(--pf-navy, #1e3a8a) 45%, transparent) !important;
     }
-    [data-pf-active] * { color: #fff; }
     .pf-input {
       width: 100%; box-sizing: border-box; font: inherit; font-size: 13px; color: inherit;
       padding: 5px 26px 5px 9px; border-radius: 8px; outline: none;
